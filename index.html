@@ -2,133 +2,120 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Quantum Flashcards - An advanced flashcard application with quantum-themed UI">
-    <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>Quantum Flashcards</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    
-    <!-- Web App Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum FlashCards</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="src/css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <div class="particle-network-animation">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+        <div class="glow glow-3"></div>
+    </div>
+    <button id="fullscreenBtn" class="control-btn fullscreen-btn">
+        <i class="fas fa-expand"></i>
+        Fullscreen
+    </button>
+    <button id="supportBtn" class="control-btn support-btn">
+        <i class="fas fa-question-circle"></i>
+    </button>
+    <button id="supportMeBtn" class="control-btn support-me-btn">
+        <i class="fas fa-heart"></i>
+        Support ME
+    </button>
+    
     <div class="app-container">
-        <!-- Neural Network Background -->
-        <div class="neural-network-bg"></div>
-
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo-container">
-                    <h1 class="app-title">Quantum Flashcards</h1>
-                </div>
-                <button id="themeToggle" class="theme-toggle" title="Toggle Theme">
-                    <span class="material-icons">dark_mode</span>
-                </button>
-            </div>
+        <header>
+            <h1>Quantum FlashCards</h1>
         </header>
 
-        <!-- Main Content -->
-        <div class="content-container">
-            <!-- Create Mode -->
-            <div id="createMode" class="mode-container active">
-                <div class="flashcard-container">
-                    <div id="currentCard" class="flashcard">
-                        <div class="flashcard-inner">
-                            <div class="flashcard-front">
-                                <textarea id="questionInput" class="card-input" placeholder="Enter your question..."></textarea>
-                                <div class="card-actions">
-                                    <button id="flipBtn" class="action-button" title="Flip">
-                                        <span class="material-icons">flip</span>
-                                    </button>
-                                    <button id="saveBtn" class="action-button primary" title="Save">
-                                        <span class="material-icons">save</span>
-                                        Save Card
-                                    </button>
+        <main>
+            <!-- Main Card Section -->
+            <section class="main-card">
+                <div class="flashcard" id="mainCard">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <textarea placeholder="Enter your question..." id="questionInput"></textarea>
+                        </div>
+                        <div class="flashcard-back">
+                            <textarea placeholder="Enter your answer..." id="answerInput"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-controls">
+                    <button id="flipBtn" class="glow-button">Flip Card</button>
+                    <button id="saveBtn" class="glow-button blue">Save Card</button>
+                </div>
+            </section>
+
+            <!-- Piles Section -->
+            <section class="piles-container">
+                <div class="pile blue" id="unstudiedPile">
+                    <h3>Unstudied</h3>
+                    <span class="card-count">0</span>
+                    <button class="study-btn">Study</button>
+                </div>
+                <div class="pile red" id="wrongPile">
+                    <h3>Wrong</h3>
+                    <span class="card-count">0</span>
+                    <button class="study-btn">Study</button>
+                </div>
+                <div class="pile gold" id="closePile">
+                    <h3>Close</h3>
+                    <span class="card-count">0</span>
+                    <button class="study-btn">Study</button>
+                </div>
+                <div class="pile green" id="rightPile">
+                    <h3>Right</h3>
+                    <span class="card-count">0</span>
+                    <button class="study-btn">Study</button>
+                </div>
+                <div class="pile purple" id="deletionPile">
+                    <h3>Deletion</h3>
+                    <span class="card-count">0</span>
+                </div>
+            </section>
+
+            <!-- Study Mode Section -->
+            <section class="study-mode hidden" id="studyMode">
+                <div class="flashcard" id="studyCard">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <p class="question-text"></p>
+                            <textarea placeholder="Enter your answer and press Enter or click Check Answer..." id="studyAnswer"></textarea>
+                            <button id="checkAnswerBtn" class="glow-button blue">
+                                <i class="fas fa-check"></i> Check Answer
+                            </button>
+                        </div>
+                        <div class="flashcard-back">
+                            <div class="answer-comparison">
+                                <div class="your-answer" id="userAnswerBox">
+                                    <h4>Your Answer:</h4>
+                                    <p class="user-answer-text"></p>
                                 </div>
-                            </div>
-                            <div class="flashcard-back">
-                                <textarea id="answerInput" class="card-input" placeholder="Enter your answer..."></textarea>
-                                <div class="card-actions">
-                                    <button id="backFlipBtn" class="action-button" title="Return">
-                                        <span class="material-icons">flip</span>
-                                    </button>
+                                <div class="correct-answer">
+                                    <h4>Correct Answer:</h4>
+                                    <p class="correct-answer-text"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Piles Container -->
-            <div class="piles-container">
-                <div class="pile-item" data-pile="unstudied">
-                    <h3>Unstudied</h3>
-                    <span class="pile-count">0</span>
-                    <button class="study-button" title="Study">
-                        <span class="material-icons">school</span>
-                    </button>
+                <button class="exit-study-btn" title="Exit Study Mode"><i class="fas fa-times"></i></button>
+                <div class="study-controls">
+                    <button class="category-btn wrong">Wrong</button>
+                    <button class="category-btn close">Close</button>
+                    <button class="category-btn right">Right</button>
+                    <button class="category-btn delete">Delete</button>
                 </div>
-                <div class="pile-item" data-pile="wrong">
-                    <h3>Wrong</h3>
-                    <span class="pile-count">0</span>
-                    <button class="study-button" title="Study">
-                        <span class="material-icons">school</span>
-                    </button>
-                </div>
-                <div class="pile-item" data-pile="almost">
-                    <h3>Almost</h3>
-                    <span class="pile-count">0</span>
-                    <button class="study-button" title="Study">
-                        <span class="material-icons">school</span>
-                    </button>
-                </div>
-                <div class="pile-item" data-pile="right">
-                    <h3>Right</h3>
-                    <span class="pile-count">0</span>
-                    <button class="study-button" title="Study">
-                        <span class="material-icons">school</span>
-                    </button>
-                </div>
-                <div class="pile-item" data-pile="done">
-                    <h3>Done</h3>
-                    <span class="pile-count">0</span>
-                    <div class="pile-buttons">
-                        <button class="study-button" title="Study">
-                            <span class="material-icons">school</span>
-                        </button>
-                        <button id="deleteDoneBtn" class="delete-button" title="Delete All Done Cards">
-                            <span class="material-icons">delete_sweep</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            </section>
+        </main>
     </div>
 
-    <!-- Study Mode Popup (outside main app) -->
-    <div id="studyPopup" class="study-popup">
-        <div class="study-popup-content">
-            <div class="study-header">
-                <h2 class="study-title">Study Cards</h2>
-                <button id="closeStudyBtn" class="action-button" title="Close">
-                    <span class="material-icons">close</span>
-                </button>
-            </div>
-            <div class="study-container">
-                <!-- Study cards will be dynamically added here -->
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="src/js/app.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/particle-animation.js"></script>
 </body>
 </html>
