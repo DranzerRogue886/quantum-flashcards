@@ -1,0 +1,204 @@
+.file-upload-container {
+  margin: 20px 0;
+}
+
+.file-upload-area {
+  border: 3px dashed rgba(102, 126, 234, 0.3);
+  border-radius: 15px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.file-upload-area:hover {
+  border-color: rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+}
+
+.file-upload-area.drag-over {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+  transform: scale(1.02);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.3);
+}
+
+.file-upload-area.processing {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  cursor: default;
+}
+
+.upload-content,
+.processing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.upload-icon,
+.processing-icon {
+  font-size: 3em;
+  margin-bottom: 10px;
+  animation: pulse 2s infinite;
+}
+
+.processing-icon {
+  animation: spin 1s linear infinite;
+}
+
+.upload-content h3 {
+  margin: 0;
+  color: #667eea;
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.upload-content p {
+  margin: 0;
+  color: #666;
+  font-size: 1.1em;
+}
+
+.processing-content h3 {
+  margin: 0;
+  color: #667eea;
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.processing-content p {
+  margin: 0;
+  color: #666;
+  font-size: 1.1em;
+}
+
+.supported-formats {
+  margin-top: 10px;
+}
+
+.supported-formats span {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.progress-bar {
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 15px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Quantum particle effects */
+.file-upload-area::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+  border-radius: 17px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background-size: 400% 400%;
+  animation: quantum-glow 3s ease-in-out infinite;
+}
+
+.file-upload-area.drag-over::before {
+  opacity: 0.3;
+}
+
+@keyframes quantum-glow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .file-upload-area {
+    padding: 30px 15px;
+  }
+  
+  .upload-content h3,
+  .processing-content h3 {
+    font-size: 1.3em;
+  }
+  
+  .upload-content p,
+  .processing-content p {
+    font-size: 1em;
+  }
+  
+  .upload-icon,
+  .processing-icon {
+    font-size: 2.5em;
+  }
+} 
