@@ -4,8 +4,8 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import './FileUpload.css';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Disable PDF.js worker to avoid CORS issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = false;
 
 const FileUpload = ({ onFileProcessed, onError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -254,10 +254,15 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         reader.readAsArrayBuffer(file);
       });
 
-      // Load PDF document
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
+      // Load PDF document with disabled worker
+      const loadingTask = pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      });
       
+      const pdf = await loadingTask.promise;
       let fullText = '';
       
       // Extract text from all pages
@@ -296,32 +301,67 @@ const FileUpload = ({ onFileProcessed, onError }) => {
       try {
         return await extractTextFromPDFAlternative(file);
       } catch (altError) {
-        throw new Error(`Failed to extract text from PDF: ${error.message}`);
+        console.error('Alternative PDF extraction also failed:', altError);
+        throw new Error(`Failed to extract text from PDF. The file might be image-based or corrupted. Please try converting to text format.`);
       }
     }
   };
 
   const extractTextFromPDFAlternative = async (file) => {
-    // Alternative method for basic PDFs
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Simple text extraction for basic PDFs
-    const textDecoder = new TextDecoder('utf-8');
-    const pdfString = textDecoder.decode(uint8Array);
-    
-    // Extract text content using regex patterns
-    const textMatches = pdfString.match(/\(([^)]+)\)/g);
-    if (textMatches) {
-      return textMatches
-        .map(match => match.slice(1, -1)) // Remove parentheses
-        .filter(text => text.length > 2 && !text.includes('\\')) // Filter meaningful text
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    try {
+      // Alternative method for basic PDFs
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Try different text encodings
+      const encodings = ['utf-8', 'latin1', 'ascii'];
+      let bestText = '';
+      
+      for (const encoding of encodings) {
+        try {
+          const textDecoder = new TextDecoder(encoding);
+          const pdfString = textDecoder.decode(uint8Array);
+          
+          // Extract text content using multiple regex patterns
+          const patterns = [
+            /\(([^)]+)\)/g,  // Text in parentheses
+            /\/Text\s*<<[^>]*\/Contents\s*<<[^>]*\/Length\s+\d+[^>]*>>[^>]*>>/g,  // PDF text objects
+            /[a-zA-Z0-9\s.,!?;:()[\]{}"'\-_+=<>/@#$%^&*~`|\\]{3,}/g  // General readable text
+          ];
+          
+          for (const pattern of patterns) {
+            const matches = pdfString.match(pattern);
+            if (matches && matches.length > 0) {
+              const extractedText = matches
+                .map(match => {
+                  if (pattern.source.includes('\\(([^)]+)\\)')) {
+                    return match.slice(1, -1); // Remove parentheses
+                  }
+                  return match;
+                })
+                .filter(text => text.length > 2 && !text.includes('\\') && !text.includes('PDF') && !text.includes('Skia'))
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              
+              if (extractedText.length > bestText.length) {
+                bestText = extractedText;
+              }
+            }
+          }
+        } catch (encodingError) {
+          console.warn(`Failed to decode with ${encoding}:`, encodingError);
+        }
+      }
+      
+      if (bestText.length > 10) {
+        return bestText;
+      }
+      
+      throw new Error('No meaningful text content could be extracted');
+    } catch (error) {
+      throw new Error('Alternative PDF extraction failed');
     }
-    
-    throw new Error('No text content could be extracted');
   };
 
   const extractTextFromWord = async (file) => {
