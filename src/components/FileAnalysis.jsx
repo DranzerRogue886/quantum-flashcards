@@ -27,6 +27,10 @@ const FileAnalysis = ({ fileData, onGenerateFlashcards, onBack }) => {
 
       <div className="file-stats">
         <div className="stat-item">
+          <span className="stat-label">File Type:</span>
+          <span className="stat-value">{fileData.fileTypeInfo?.icon} {fileData.fileTypeInfo?.category || 'Unknown'}</span>
+        </div>
+        <div className="stat-item">
           <span className="stat-label">Words:</span>
           <span className="stat-value">{fileData.wordCount.toLocaleString()}</span>
         </div>
