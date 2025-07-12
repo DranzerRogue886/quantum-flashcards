@@ -51,30 +51,27 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         throw new Error(`Unsupported file type: ${file.name}. Please upload a supported file type.`);
       }
 
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 100);
+      // Update progress to 20% after file validation
+      setUploadProgress(20);
 
+      // Read file content with progress updates
+      setUploadProgress(40);
       const content = await readFileContent(file, supportCheck.category);
+      
+      setUploadProgress(70);
       const parsedContent = parseFileContent(content, file.name, supportCheck);
       
-      clearInterval(progressInterval);
       setUploadProgress(100);
       
+      // Small delay to show completion
       setTimeout(() => {
         onFileProcessed(parsedContent, file.name);
         setIsProcessing(false);
         setUploadProgress(0);
-      }, 500);
+      }, 200);
 
     } catch (error) {
+      console.error('File processing error:', error);
       setIsProcessing(false);
       setUploadProgress(0);
       onError(`Error processing file: ${error.message}`);
@@ -246,13 +243,18 @@ const FileUpload = ({ onFileProcessed, onError }) => {
 
   const extractTextFromPDF = async (file) => {
     try {
-      // Convert file to ArrayBuffer
-      const arrayBuffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
+      // Convert file to ArrayBuffer with timeout
+      const arrayBuffer = await Promise.race([
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(file);
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('File reading timeout')), 30000)
+        )
+      ]);
 
       // Load PDF document without worker
       const loadingTask = pdfjsLib.getDocument({ 
@@ -265,8 +267,9 @@ const FileUpload = ({ onFileProcessed, onError }) => {
       const pdf = await loadingTask.promise;
       let fullText = '';
       
-      // Extract text from all pages
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      // Extract text from all pages (limit to first 10 pages to avoid timeouts)
+      const maxPages = Math.min(pdf.numPages, 10);
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
         try {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();

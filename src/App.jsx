@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import Flashcard from "./components/Flashcard";
 import FileUpload from "./components/FileUpload";
@@ -19,7 +18,7 @@ function App() {
   const [showFileUpload, setShowFileUpload] = useState(true);
 
   async function greet() {
-    setGreetMsg(await invoke("greet", { name }));
+    setGreetMsg(`Hello, ${name}! Welcome to Quantum Flashcards!`);
   }
 
   const generateFlashcards = async () => {
@@ -172,25 +171,6 @@ function App() {
           </div>
         </div>
       )}
-
-      <div className="legacy-section">
-        <h3>Legacy Tauri Test</h3>
-        <form
-          className="row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            greet();
-          }}
-        >
-          <input
-            id="greet-input"
-            onChange={(e) => setName(e.currentTarget.value)}
-            placeholder="Enter your name..."
-          />
-          <button type="submit">Greet</button>
-        </form>
-        <p>{greetMsg}</p>
-      </div>
     </main>
   );
 }
