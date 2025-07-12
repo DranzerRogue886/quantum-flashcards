@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import './FileUpload.css';
 
 // Disable PDF.js worker to avoid CORS issues
-pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
+// We'll handle this in the getDocument options instead
 
 const FileUpload = ({ onFileProcessed, onError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -259,7 +259,8 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         data: arrayBuffer,
         useWorkerFetch: false,
         isEvalSupported: false,
-        useSystemFonts: true
+        useSystemFonts: true,
+        disableWorker: true
       });
       
       const pdf = await loadingTask.promise;
