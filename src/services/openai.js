@@ -24,14 +24,18 @@ class OpenAIService {
     this.lastRequestTime = Date.now();
     
     try {
+      console.log('Making API request to OpenAI...');
       const response = await axios(requestConfig);
+      console.log('API request successful');
       return response;
     } catch (error) {
+      console.error('API request failed:', error);
       if (error.response?.status === 429) {
         // Rate limit exceeded - wait and retry once
         console.log('Rate limit hit, waiting 2 seconds before retry...');
         await new Promise(resolve => setTimeout(resolve, 2000));
         this.lastRequestTime = Date.now();
+        console.log('Retrying API request...');
         return await axios(requestConfig);
       }
       throw error;
@@ -40,6 +44,11 @@ class OpenAIService {
 
   async generateQuantumFlashcard(topic = 'quantum computing') {
     try {
+      // Check if API key is available
+      if (!OPENAI_API_KEY) {
+        throw new Error('OpenAI API key is not configured. Please check your environment variables.');
+      }
+      
       const response = await this.makeRateLimitedRequest({
         method: 'POST',
         url: OPENAI_API_URL,
@@ -79,13 +88,36 @@ class OpenAIService {
         };
       }
     } catch (error) {
-      console.error('OpenAI API Error:', error.response?.data || error.message);
-      throw new Error('Failed to generate flashcard. Please try again.');
+      console.error('OpenAI API Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      // Provide more specific error messages
+      if (error.response?.status === 401) {
+        throw new Error('API key error. Please check your OpenAI configuration.');
+      } else if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (error.response?.status === 400) {
+        throw new Error('Invalid request. Please check your input and try again.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('OpenAI service error. Please try again later.');
+      } else if (error.message.includes('timeout')) {
+        throw new Error('Request timeout. Please try again.');
+      } else if (!error.response) {
+        throw new Error('Network error. Please check your connection and try again.');
+      } else {
+        throw new Error(`API Error: ${error.response?.data?.error?.message || error.message}`);
+      }
     }
   }
 
   async generateMultipleFlashcards(topic = 'quantum computing', count = 3) {
     try {
+      // Check if API key is available
+      if (!OPENAI_API_KEY) {
+        throw new Error('OpenAI API key is not configured. Please check your environment variables.');
+      }
+      
       const response = await this.makeRateLimitedRequest({
         method: 'POST',
         url: OPENAI_API_URL,
@@ -126,8 +158,26 @@ class OpenAIService {
         ];
       }
     } catch (error) {
-      console.error('OpenAI API Error:', error.response?.data || error.message);
-      throw new Error('Failed to generate flashcards. Please try again.');
+      console.error('OpenAI API Error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      // Provide more specific error messages
+      if (error.response?.status === 401) {
+        throw new Error('API key error. Please check your OpenAI configuration.');
+      } else if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (error.response?.status === 400) {
+        throw new Error('Invalid request. Please check your input and try again.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('OpenAI service error. Please try again later.');
+      } else if (error.message.includes('timeout')) {
+        throw new Error('Request timeout. Please try again.');
+      } else if (!error.response) {
+        throw new Error('Network error. Please check your connection and try again.');
+      } else {
+        throw new Error(`API Error: ${error.response?.data?.error?.message || error.message}`);
+      }
     }
   }
 
