@@ -4,8 +4,8 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import './FileUpload.css';
 
-// Set PDF.js workerSrc to a dummy data URL to disable the worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,';
+// Disable PDF.js worker completely
+delete pdfjsLib.GlobalWorkerOptions.workerSrc;
 
 const FileUpload = ({ onFileProcessed, onError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -261,7 +261,8 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         data: arrayBuffer,
         useWorkerFetch: false,
         isEvalSupported: false,
-        useSystemFonts: true
+        useSystemFonts: true,
+        disableWorker: true
       });
       
       const pdf = await loadingTask.promise;
