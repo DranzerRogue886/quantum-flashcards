@@ -141,11 +141,35 @@ class OpenAIService {
 
   async generateFlashcardsFromFile(fileContent, fileName, topics = [], fileCategory = null) {
     try {
+      // Check if content is meaningful
+      const meaningfulWords = fileContent.split(/\s+/).filter(word => word.length > 2).length;
+      if (meaningfulWords < 5) {
+        throw new Error('The file content appears to be empty or contains mostly formatting data. Please try uploading a different file with more text content.');
+      }
+
+      // Clean the content before processing
+      let cleanedContent = fileContent;
+      if (fileCategory === 'pdf') {
+        // Additional cleaning for PDF content
+        cleanedContent = fileContent
+          .replace(/Skia\/PDF[^a-zA-Z]*/g, '')
+          .replace(/Google Docs Renderer[^a-zA-Z]*/g, '')
+          .replace(/[^\x20-\x7E\n]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Check if cleaned content is still meaningful
+        const cleanedWords = cleanedContent.split(/\s+/).filter(word => word.length > 2).length;
+        if (cleanedWords < 5) {
+          throw new Error('The PDF appears to be image-based or contains mostly formatting data. Please try uploading a text-based PDF or convert the document to text format.');
+        }
+      }
+
       // Truncate content if too long (OpenAI has token limits)
       const maxContentLength = 4000;
-      const truncatedContent = fileContent.length > maxContentLength 
-        ? fileContent.substring(0, maxContentLength) + '...'
-        : fileContent;
+      const truncatedContent = cleanedContent.length > maxContentLength 
+        ? cleanedContent.substring(0, maxContentLength) + '...'
+        : cleanedContent;
 
       // Create category-specific instructions
       const categoryInstructions = {
@@ -196,7 +220,8 @@ class OpenAIService {
               Content:
               ${truncatedContent}
               
-              Generate flashcards that cover the main concepts and important details from this content.`
+              Generate flashcards that cover the main concepts and important details from this content.
+              If the content appears to be mostly formatting or binary data, create flashcards about file types and document processing instead.`
             }
           ],
           max_tokens: 1000,
@@ -234,7 +259,17 @@ class OpenAIService {
       }
     } catch (error) {
       console.error('OpenAI API Error:', error.response?.data || error.message);
-      throw new Error('Failed to generate flashcards from file. Please try again.');
+      
+      // Provide helpful error messages based on the error type
+      if (error.message.includes('empty') || error.message.includes('formatting')) {
+        throw new Error(error.message);
+      } else if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (error.response?.status === 401) {
+        throw new Error('API key error. Please check your OpenAI configuration.');
+      } else {
+        throw new Error('Failed to generate flashcards from file. Please try again or upload a different file.');
+      }
     }
   }
 

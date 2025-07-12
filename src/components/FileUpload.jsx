@@ -404,7 +404,28 @@ const FileUpload = ({ onFileProcessed, onError }) => {
       .trim();
 
     // Category-specific cleaning
-    if (category === 'linux') {
+    if (category === 'pdf') {
+      // Special cleaning for PDF content
+      cleaned = cleaned
+        .replace(/Skia\/PDF[^a-zA-Z]*/g, '') // Remove Skia/PDF renderer info
+        .replace(/Google Docs Renderer[^a-zA-Z]*/g, '') // Remove Google Docs renderer info
+        .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
+        .replace(/\b[a-f0-9]{8,}\b/gi, '') // Remove hex strings
+        .replace(/\b\d{10,}\b/g, '') // Remove long number sequences
+        .replace(/[^\w\s.,!?;:()[\]{}"'\-_+=<>/@#$%^&*~`|\\]/g, '') // Keep only readable characters
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      // If the cleaned content is too short or mostly garbage, return a helpful message
+      const meaningfulWords = cleaned.split(/\s+/).filter(word => word.length > 2).length;
+      if (meaningfulWords < 10) {
+        return `PDF file content appears to be mostly formatting or binary data. 
+        The extracted content contains: ${cleaned.substring(0, 200)}...
+        
+        This PDF may be image-based or contain mostly formatting information. 
+        Please try uploading a text-based PDF or convert the document to text format.`;
+      }
+    } else if (category === 'linux') {
       // For code files, preserve structure but clean comments
       cleaned = cleaned
         .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
