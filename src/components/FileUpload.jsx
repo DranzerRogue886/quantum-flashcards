@@ -44,6 +44,7 @@ const FileUpload = ({ onFileProcessed, onError }) => {
   const processFile = async (file) => {
     setIsProcessing(true);
     setUploadProgress(0);
+    let progressInterval = null;
 
     try {
       // Check if file is supported
@@ -58,28 +59,40 @@ const FileUpload = ({ onFileProcessed, onError }) => {
       // Read file content with timeout and progress updates
       setUploadProgress(40);
       
-      // Add intermediate progress updates
-      const progressInterval = setInterval(() => {
+      // Add intermediate progress updates that continue until completion
+      progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 65) {
-            clearInterval(progressInterval);
-            return 65;
+          if (prev >= 95) {
+            return 95; // Don't go to 100% until we're actually done
           }
           return prev + 1;
         });
-      }, 200);
+      }, 150);
       
+      console.log('Starting file content extraction...');
       const content = await Promise.race([
         readFileContent(file, supportCheck.category),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('File processing timeout - file may be too large or corrupted')), 60000)
+          setTimeout(() => reject(new Error('File processing timeout - file may be too large or corrupted')), 45000)
         )
       ]);
       
-      clearInterval(progressInterval);
+      console.log('File content extraction completed');
       
-      setUploadProgress(70);
-      const parsedContent = parseFileContent(content, file.name, supportCheck);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      
+      setUploadProgress(96);
+      console.log('Starting content parsing...');
+      const parsedContent = await Promise.race([
+        Promise.resolve(parseFileContent(content, file.name, supportCheck)),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Content parsing timeout')), 10000)
+        )
+      ]);
+      console.log('Content parsing completed');
       
       setUploadProgress(100);
       
@@ -92,6 +105,9 @@ const FileUpload = ({ onFileProcessed, onError }) => {
 
     } catch (error) {
       console.error('File processing error:', error);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       setIsProcessing(false);
       setUploadProgress(0);
       onError(`Error processing file: ${error.message}`);
@@ -508,8 +524,16 @@ const FileUpload = ({ onFileProcessed, onError }) => {
     return cleaned;
   };
 
-  const readFileContent = (file, category) => {
-    return extractTextFromFile(file, category);
+  const readFileContent = async (file, category) => {
+    try {
+      console.log(`Reading file content for category: ${category}`);
+      const result = await extractTextFromFile(file, category);
+      console.log(`File content reading completed for: ${file.name}`);
+      return result;
+    } catch (error) {
+      console.error(`Error reading file content for ${file.name}:`, error);
+      throw new Error(`Failed to read file content: ${error.message}`);
+    }
   };
 
   const parseFileContent = (content, fileName, supportCheck) => {
