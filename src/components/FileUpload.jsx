@@ -54,9 +54,28 @@ const FileUpload = ({ onFileProcessed, onError }) => {
       // Update progress to 20% after file validation
       setUploadProgress(20);
 
-      // Read file content with progress updates
+      // Read file content with timeout and progress updates
       setUploadProgress(40);
-      const content = await readFileContent(file, supportCheck.category);
+      
+      // Add intermediate progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 65) {
+            clearInterval(progressInterval);
+            return 65;
+          }
+          return prev + 1;
+        });
+      }, 200);
+      
+      const content = await Promise.race([
+        readFileContent(file, supportCheck.category),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('File processing timeout - file may be too large or corrupted')), 60000)
+        )
+      ]);
+      
+      clearInterval(progressInterval);
       
       setUploadProgress(70);
       const parsedContent = parseFileContent(content, file.name, supportCheck);
@@ -180,7 +199,9 @@ const FileUpload = ({ onFileProcessed, onError }) => {
     try {
       // Handle PDF files with special extraction
       if (category === 'pdf') {
+        console.log('Starting PDF extraction...');
         const pdfText = await extractTextFromPDF(file);
+        console.log('PDF extraction completed');
         if (pdfText.trim().length === 0) {
           return `PDF file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: No text content could be extracted from this PDF. It might be an image-based PDF or contain only scanned content.`;
         }
