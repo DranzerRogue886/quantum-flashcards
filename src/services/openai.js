@@ -8,13 +8,42 @@ class OpenAIService {
     if (!OPENAI_API_KEY) {
       console.error('OpenAI API key not found. Please check your .env file.');
     }
+    this.lastRequestTime = 0;
+    this.minRequestInterval = 1000; // 1 second between requests
+  }
+
+  async makeRateLimitedRequest(requestConfig) {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      const delay = this.minRequestInterval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastRequestTime = Date.now();
+    
+    try {
+      const response = await axios(requestConfig);
+      return response;
+    } catch (error) {
+      if (error.response?.status === 429) {
+        // Rate limit exceeded - wait and retry once
+        console.log('Rate limit hit, waiting 2 seconds before retry...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        this.lastRequestTime = Date.now();
+        return await axios(requestConfig);
+      }
+      throw error;
+    }
   }
 
   async generateQuantumFlashcard(topic = 'quantum computing') {
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
+      const response = await this.makeRateLimitedRequest({
+        method: 'POST',
+        url: OPENAI_API_URL,
+        data: {
           model: 'gpt-3.5-turbo',
           messages: [
             {
@@ -31,13 +60,11 @@ class OpenAIService {
           max_tokens: 300,
           temperature: 0.7
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       const content = response.data.choices[0].message.content;
       
@@ -59,9 +86,10 @@ class OpenAIService {
 
   async generateMultipleFlashcards(topic = 'quantum computing', count = 3) {
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
+      const response = await this.makeRateLimitedRequest({
+        method: 'POST',
+        url: OPENAI_API_URL,
+        data: {
           model: 'gpt-3.5-turbo',
           messages: [
             {
@@ -78,13 +106,11 @@ class OpenAIService {
           max_tokens: 600,
           temperature: 0.7
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       const content = response.data.choices[0].message.content;
       
@@ -186,9 +212,10 @@ class OpenAIService {
 
       const categoryInstruction = categoryInstructions[fileCategory] || 'Focus on the main concepts and important information from the content.';
 
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
+      const response = await this.makeRateLimitedRequest({
+        method: 'POST',
+        url: OPENAI_API_URL,
+        data: {
           model: 'gpt-3.5-turbo',
           messages: [
             {
@@ -227,13 +254,11 @@ class OpenAIService {
           max_tokens: 1000,
           temperature: 0.7
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       const content = response.data.choices[0].message.content;
       

@@ -5,7 +5,8 @@ import * as XLSX from 'xlsx';
 import './FileUpload.css';
 
 // Disable PDF.js worker completely
-delete pdfjsLib.GlobalWorkerOptions.workerSrc;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,';
+pdfjsLib.GlobalWorkerOptions.workerPort = null;
 
 const FileUpload = ({ onFileProcessed, onError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
