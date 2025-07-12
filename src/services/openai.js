@@ -9,7 +9,7 @@ class OpenAIService {
       console.error('OpenAI API key not found. Please check your .env file.');
     }
     this.lastRequestTime = 0;
-    this.minRequestInterval = 1000; // 1 second between requests
+    this.minRequestInterval = 5000; // 5 seconds between requests
   }
 
   async makeRateLimitedRequest(requestConfig) {
@@ -32,8 +32,8 @@ class OpenAIService {
       console.error('API request failed:', error);
       if (error.response?.status === 429) {
         // Rate limit exceeded - wait and retry once
-        console.log('Rate limit hit, waiting 2 seconds before retry...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('Rate limit hit, waiting 10 seconds before retry...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
         this.lastRequestTime = Date.now();
         console.log('Retrying API request...');
         return await axios(requestConfig);
