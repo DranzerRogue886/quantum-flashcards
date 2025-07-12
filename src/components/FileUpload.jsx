@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 import './FileUpload.css';
 
 // Set up PDF.js worker
@@ -188,6 +190,24 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         return cleanTextContent(pdfText, category);
       }
 
+      // Handle Word documents
+      if (category === 'documents' && (file.name.endsWith('.docx') || file.name.endsWith('.doc'))) {
+        const wordText = await extractTextFromWord(file);
+        return cleanTextContent(wordText, category);
+      }
+
+      // Handle Excel files
+      if (category === 'spreadsheets' && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+        const excelText = await extractTextFromExcel(file);
+        return cleanTextContent(excelText, category);
+      }
+
+      // Handle PowerPoint files
+      if (category === 'presentations' && (file.name.endsWith('.pptx') || file.name.endsWith('.ppt'))) {
+        const pptText = await extractTextFromPowerPoint(file);
+        return cleanTextContent(pptText, category);
+      }
+
       // Handle other file types
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -198,8 +218,6 @@ const FileUpload = ({ onFileProcessed, onError }) => {
           // Process content based on file category
           if (category === 'archives') {
             content = `Archive file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\nType: ${file.type || 'Unknown'}\n\nNote: Archive contents cannot be directly processed. Please extract and upload individual files.`;
-          } else if (category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
-            content = `${category.charAt(0).toUpperCase() + category.slice(1)} file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: Office file processing requires conversion to text format. Please save as .txt or .md for best results.`;
           } else if (typeof content === 'string') {
             // For text files, clean and process the content
             content = cleanTextContent(content, category);
@@ -215,7 +233,7 @@ const FileUpload = ({ onFileProcessed, onError }) => {
         };
 
         // Read file based on category
-        if (category === 'archives' || category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
+        if (category === 'archives') {
           reader.readAsArrayBuffer(file);
         } else {
           reader.readAsText(file);
@@ -228,24 +246,151 @@ const FileUpload = ({ onFileProcessed, onError }) => {
 
   const extractTextFromPDF = async (file) => {
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      // Convert file to ArrayBuffer
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+
+      // Load PDF document
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      
       let fullText = '';
       
       // Extract text from all pages
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map(item => item.str)
-          .join(' ');
-        fullText += pageText + '\n';
+        try {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          // Extract text items and maintain some formatting
+          const pageText = textContent.items
+            .map(item => {
+              // Add line breaks for items with significant vertical spacing
+              const hasLineBreak = item.transform && item.transform[5] !== undefined;
+              return item.str + (hasLineBreak ? '\n' : ' ');
+            })
+            .join('')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          fullText += pageText + '\n\n';
+        } catch (pageError) {
+          console.warn(`Error extracting text from page ${pageNum}:`, pageError);
+          // Continue with other pages
+        }
       }
       
-      return fullText.trim();
+      const cleanedText = fullText.trim();
+      if (cleanedText.length === 0) {
+        throw new Error('No text content found in PDF');
+      }
+      
+      return cleanedText;
     } catch (error) {
       console.error('PDF extraction error:', error);
-      throw new Error('Failed to extract text from PDF. The file might be corrupted or password-protected.');
+      // Try alternative approach for basic PDFs
+      try {
+        return await extractTextFromPDFAlternative(file);
+      } catch (altError) {
+        throw new Error(`Failed to extract text from PDF: ${error.message}`);
+      }
+    }
+  };
+
+  const extractTextFromPDFAlternative = async (file) => {
+    // Alternative method for basic PDFs
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Simple text extraction for basic PDFs
+    const textDecoder = new TextDecoder('utf-8');
+    const pdfString = textDecoder.decode(uint8Array);
+    
+    // Extract text content using regex patterns
+    const textMatches = pdfString.match(/\(([^)]+)\)/g);
+    if (textMatches) {
+      return textMatches
+        .map(match => match.slice(1, -1)) // Remove parentheses
+        .filter(text => text.length > 2 && !text.includes('\\')) // Filter meaningful text
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    
+    throw new Error('No text content could be extracted');
+  };
+
+  const extractTextFromWord = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value || 'No text content found in Word document';
+    } catch (error) {
+      console.error('Word extraction error:', error);
+      throw new Error('Failed to extract text from Word document');
+    }
+  };
+
+  const extractTextFromExcel = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      let fullText = '';
+      
+      // Extract text from all sheets
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        fullText += `Sheet: ${sheetName}\n`;
+        jsonData.forEach(row => {
+          if (row && row.length > 0) {
+            const rowText = row
+              .filter(cell => cell !== null && cell !== undefined)
+              .map(cell => String(cell))
+              .join(' | ');
+            if (rowText.trim()) {
+              fullText += rowText + '\n';
+            }
+          }
+        });
+        fullText += '\n';
+      });
+      
+      return fullText.trim() || 'No data found in Excel file';
+    } catch (error) {
+      console.error('Excel extraction error:', error);
+      throw new Error('Failed to extract data from Excel file');
+    }
+  };
+
+  const extractTextFromPowerPoint = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Basic PowerPoint text extraction
+      const textDecoder = new TextDecoder('utf-8');
+      const pptString = textDecoder.decode(uint8Array);
+      
+      // Extract text content from PowerPoint
+      const textMatches = pptString.match(/[a-zA-Z0-9\s.,!?;:()[\]{}"'\-_+=<>/@#$%^&*~`|\\]+/g);
+      if (textMatches) {
+        return textMatches
+          .filter(text => text.length > 3 && text.trim().length > 0)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      
+      return 'No text content found in PowerPoint file';
+    } catch (error) {
+      console.error('PowerPoint extraction error:', error);
+      throw new Error('Failed to extract text from PowerPoint file');
     }
   };
 
