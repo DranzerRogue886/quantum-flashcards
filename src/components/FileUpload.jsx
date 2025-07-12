@@ -1,5 +1,9 @@
 import { useState, useRef } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import './FileUpload.css';
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const FileUpload = ({ onFileProcessed, onError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -174,40 +178,75 @@ const FileUpload = ({ onFileProcessed, onError }) => {
   };
 
   const extractTextFromFile = async (file, category) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        let content = e.target.result;
-        
-        // Process content based on file category
-        if (category === 'archives') {
-          content = `Archive file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\nType: ${file.type || 'Unknown'}\n\nNote: Archive contents cannot be directly processed. Please extract and upload individual files.`;
-        } else if (category === 'pdf') {
-          content = `PDF file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: PDF text extraction requires additional processing. Please convert to text format for better results.`;
-        } else if (category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
-          content = `${category.charAt(0).toUpperCase() + category.slice(1)} file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: Office file processing requires conversion to text format. Please save as .txt or .md for best results.`;
-        } else if (typeof content === 'string') {
-          // For text files, clean and process the content
-          content = cleanTextContent(content, category);
-        } else {
-          content = `Binary file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: This file type cannot be processed as text. Please convert to a text format.`;
+    try {
+      // Handle PDF files with special extraction
+      if (category === 'pdf') {
+        const pdfText = await extractTextFromPDF(file);
+        if (pdfText.trim().length === 0) {
+          return `PDF file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: No text content could be extracted from this PDF. It might be an image-based PDF or contain only scanned content.`;
         }
-        
-        resolve(content);
-      };
-      
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
-
-      // Read file based on category
-      if (category === 'archives' || category === 'pdf' || category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file);
+        return cleanTextContent(pdfText, category);
       }
-    });
+
+      // Handle other file types
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          let content = e.target.result;
+          
+          // Process content based on file category
+          if (category === 'archives') {
+            content = `Archive file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\nType: ${file.type || 'Unknown'}\n\nNote: Archive contents cannot be directly processed. Please extract and upload individual files.`;
+          } else if (category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
+            content = `${category.charAt(0).toUpperCase() + category.slice(1)} file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: Office file processing requires conversion to text format. Please save as .txt or .md for best results.`;
+          } else if (typeof content === 'string') {
+            // For text files, clean and process the content
+            content = cleanTextContent(content, category);
+          } else {
+            content = `Binary file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: This file type cannot be processed as text. Please convert to a text format.`;
+          }
+          
+          resolve(content);
+        };
+        
+        reader.onerror = () => {
+          reject(new Error('Failed to read file'));
+        };
+
+        // Read file based on category
+        if (category === 'archives' || category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
+          reader.readAsArrayBuffer(file);
+        } else {
+          reader.readAsText(file);
+        }
+      });
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const extractTextFromPDF = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map(item => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      return fullText.trim();
+    } catch (error) {
+      console.error('PDF extraction error:', error);
+      throw new Error('Failed to extract text from PDF. The file might be corrupted or password-protected.');
+    }
   };
 
   const cleanTextContent = (content, category) => {

@@ -156,7 +156,7 @@ class OpenAIService {
         'spreadsheets': 'Focus on data analysis, formulas, functions, and spreadsheet concepts. Create flashcards about data manipulation and analysis.',
         'presentations': 'Focus on presentation content, key points, and main ideas. Create flashcards about the topics and concepts presented.',
         'text': 'Focus on the main content, key concepts, and important information. Create flashcards about the primary topics and ideas.',
-        'pdf': 'Focus on the document content and key concepts. Create flashcards about the main topics and important information.',
+        'pdf': 'Focus on the document content, key concepts, and important information. Create flashcards about the main topics, definitions, and important details from the PDF document. Pay attention to headings, bullet points, and structured content.',
         'archives': 'Focus on file management and archive concepts. Create flashcards about file organization and data storage.'
       };
 
@@ -321,7 +321,7 @@ class OpenAIService {
         'spreadsheets': 'Extract data patterns, formulas, functions, and analytical insights.',
         'presentations': 'Extract key points, main ideas, supporting details, and presentation structure.',
         'text': 'Extract main concepts, key ideas, important facts, and supporting information.',
-        'pdf': 'Extract document content, key concepts, and important information.',
+        'pdf': 'Extract document content, key concepts, important information, and structured content. Pay attention to headings, sections, bullet points, and organized information from the PDF.',
         'archives': 'Extract file organization, structure, and management concepts.'
       };
 
