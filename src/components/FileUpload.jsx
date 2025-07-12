@@ -173,36 +173,72 @@ const FileUpload = ({ onFileProcessed, onError }) => {
     return { supported: false };
   };
 
-  const readFileContent = (file, category) => {
+  const extractTextFromFile = async (file, category) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
       reader.onload = (e) => {
-        resolve(e.target.result);
+        let content = e.target.result;
+        
+        // Process content based on file category
+        if (category === 'archives') {
+          content = `Archive file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\nType: ${file.type || 'Unknown'}\n\nNote: Archive contents cannot be directly processed. Please extract and upload individual files.`;
+        } else if (category === 'pdf') {
+          content = `PDF file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: PDF text extraction requires additional processing. Please convert to text format for better results.`;
+        } else if (category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
+          content = `${category.charAt(0).toUpperCase() + category.slice(1)} file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: Office file processing requires conversion to text format. Please save as .txt or .md for best results.`;
+        } else if (typeof content === 'string') {
+          // For text files, clean and process the content
+          content = cleanTextContent(content, category);
+        } else {
+          content = `Binary file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: This file type cannot be processed as text. Please convert to a text format.`;
+        }
+        
+        resolve(content);
       };
       
       reader.onerror = () => {
         reject(new Error('Failed to read file'));
       };
 
-      // Handle different file types appropriately
-      if (category === 'archives') {
-        // For archives, we'll read as ArrayBuffer and provide a placeholder
+      // Read file based on category
+      if (category === 'archives' || category === 'pdf' || category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
         reader.readAsArrayBuffer(file);
-        resolve(`Archive file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\nType: ${file.type || 'Unknown'}\n\nNote: Archive contents cannot be directly processed. Please extract and upload individual files.`);
-      } else if (category === 'pdf') {
-        // For PDFs, read as ArrayBuffer and provide placeholder
-        reader.readAsArrayBuffer(file);
-        resolve(`PDF file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: PDF text extraction requires additional processing. Please convert to text format for better results.`);
-      } else if (category === 'presentations' || category === 'documents' || category === 'spreadsheets') {
-        // For Office files, read as ArrayBuffer and provide placeholder
-        reader.readAsArrayBuffer(file);
-        resolve(`${category.charAt(0).toUpperCase() + category.slice(1)} file: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\nNote: Office file processing requires conversion to text format. Please save as .txt or .md for best results.`);
       } else {
-        // For text-based files, read as text
         reader.readAsText(file);
       }
     });
+  };
+
+  const cleanTextContent = (content, category) => {
+    // Remove excessive whitespace and normalize line endings
+    let cleaned = content
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Category-specific cleaning
+    if (category === 'linux') {
+      // For code files, preserve structure but clean comments
+      cleaned = cleaned
+        .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+        .replace(/\/\/.*$/gm, '') // Remove line comments
+        .replace(/#.*$/gm, ''); // Remove shell comments
+    } else if (category === 'config') {
+      // For config files, preserve structure
+      cleaned = cleaned.replace(/^\s*#.*$/gm, ''); // Remove comment lines
+    } else if (category === 'data') {
+      // For data files, preserve structure
+      cleaned = cleaned.replace(/^\s*\/\/.*$/gm, ''); // Remove comment lines
+    }
+
+    return cleaned;
+  };
+
+  const readFileContent = (file, category) => {
+    return extractTextFromFile(file, category);
   };
 
   const parseFileContent = (content, fileName, supportCheck) => {

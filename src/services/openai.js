@@ -139,13 +139,28 @@ class OpenAIService {
     }
   }
 
-  async generateFlashcardsFromFile(fileContent, fileName, topics = []) {
+  async generateFlashcardsFromFile(fileContent, fileName, topics = [], fileCategory = null) {
     try {
       // Truncate content if too long (OpenAI has token limits)
-      const maxContentLength = 3000;
+      const maxContentLength = 4000;
       const truncatedContent = fileContent.length > maxContentLength 
         ? fileContent.substring(0, maxContentLength) + '...'
         : fileContent;
+
+      // Create category-specific instructions
+      const categoryInstructions = {
+        'linux': 'Focus on programming concepts, functions, classes, imports, and code structure. Create flashcards about coding practices, syntax, and development concepts.',
+        'config': 'Focus on configuration settings, parameters, environment variables, and system setup. Create flashcards about configuration management and system administration.',
+        'data': 'Focus on data structures, queries, database concepts, and data analysis. Create flashcards about data management and analysis techniques.',
+        'documents': 'Focus on document content, key concepts, and important information. Create flashcards about the main topics and ideas presented.',
+        'spreadsheets': 'Focus on data analysis, formulas, functions, and spreadsheet concepts. Create flashcards about data manipulation and analysis.',
+        'presentations': 'Focus on presentation content, key points, and main ideas. Create flashcards about the topics and concepts presented.',
+        'text': 'Focus on the main content, key concepts, and important information. Create flashcards about the primary topics and ideas.',
+        'pdf': 'Focus on the document content and key concepts. Create flashcards about the main topics and important information.',
+        'archives': 'Focus on file management and archive concepts. Create flashcards about file organization and data storage.'
+      };
+
+      const categoryInstruction = categoryInstructions[fileCategory] || 'Focus on the main concepts and important information from the content.';
 
       const response = await axios.post(
         OPENAI_API_URL,
@@ -154,22 +169,37 @@ class OpenAIService {
           messages: [
             {
               role: 'system',
-              content: `You are an expert educator. Create 5 educational flashcards based on the provided content. 
+              content: `You are an expert educator specializing in creating educational flashcards from various types of content. 
+              ${categoryInstruction}
+              
+              Create 5 educational flashcards based on the provided content. 
               Each flashcard should have a clear question and comprehensive answer.
               Format the response as a JSON array with objects containing 'question' and 'answer' fields.
-              Make the flashcards educational and suitable for learning.`
+              Make the flashcards educational, accurate, and suitable for learning.
+              
+              Example format:
+              [
+                {
+                  "question": "What is the main concept?",
+                  "answer": "The main concept is..."
+                }
+              ]`
             },
             {
               role: 'user',
-              content: `Create 5 flashcards from this content: ${truncatedContent}
+              content: `Create 5 flashcards from this content:
               
-              Key topics identified: ${topics.join(', ')}
               File: ${fileName}
+              File Type: ${fileCategory || 'Unknown'}
+              Key topics identified: ${topics.join(', ')}
+              
+              Content:
+              ${truncatedContent}
               
               Generate flashcards that cover the main concepts and important details from this content.`
             }
           ],
-          max_tokens: 800,
+          max_tokens: 1000,
           temperature: 0.7
         },
         {
@@ -183,8 +213,17 @@ class OpenAIService {
       const content = response.data.choices[0].message.content;
       
       try {
-        return JSON.parse(content);
+        const parsed = JSON.parse(content);
+        // Ensure we have an array of flashcards
+        if (Array.isArray(parsed)) {
+          return parsed;
+        } else if (parsed.question && parsed.answer) {
+          return [parsed];
+        } else {
+          throw new Error('Invalid response format');
+        }
       } catch (parseError) {
+        console.log('Failed to parse JSON, creating structured response:', parseError);
         // If not JSON, create a structured response
         return [
           {
@@ -199,12 +238,26 @@ class OpenAIService {
     }
   }
 
-  async analyzeFileContent(fileContent, fileName) {
+  async analyzeFileContent(fileContent, fileName, fileCategory = null) {
     try {
-      const maxContentLength = 2000;
+      const maxContentLength = 3000;
       const truncatedContent = fileContent.length > maxContentLength 
         ? fileContent.substring(0, maxContentLength) + '...'
         : fileContent;
+
+      const categoryInstructions = {
+        'linux': 'Focus on programming concepts, code structure, functions, and development practices.',
+        'config': 'Focus on configuration settings, system parameters, and administrative concepts.',
+        'data': 'Focus on data structures, database concepts, and data analysis techniques.',
+        'documents': 'Focus on document content, key concepts, and main ideas presented.',
+        'spreadsheets': 'Focus on data analysis, formulas, and spreadsheet concepts.',
+        'presentations': 'Focus on presentation content, key points, and main ideas.',
+        'text': 'Focus on the main content and key concepts.',
+        'pdf': 'Focus on document content and key concepts.',
+        'archives': 'Focus on file management and archive concepts.'
+      };
+
+      const categoryInstruction = categoryInstructions[fileCategory] || '';
 
       const response = await axios.post(
         OPENAI_API_URL,
@@ -213,7 +266,11 @@ class OpenAIService {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert content analyzer. Analyze the provided content and extract key topics, concepts, and learning objectives.'
+              content: `You are an expert content analyzer specializing in ${fileCategory || 'various'} content types. 
+              ${categoryInstruction}
+              
+              Analyze the provided content and extract key topics, concepts, and learning objectives.
+              Provide a structured analysis that can be used for creating educational content.`
             },
             {
               role: 'user',
@@ -222,12 +279,16 @@ class OpenAIService {
               2. Key concepts
               3. Learning objectives
               4. Difficulty level
+              5. Suggested study approach
               
-              Content: ${truncatedContent}
-              File: ${fileName}`
+              File: ${fileName}
+              File Type: ${fileCategory || 'Unknown'}
+              
+              Content:
+              ${truncatedContent}`
             }
           ],
-          max_tokens: 500,
+          max_tokens: 600,
           temperature: 0.5
         },
         {
@@ -242,6 +303,76 @@ class OpenAIService {
     } catch (error) {
       console.error('OpenAI API Error:', error.response?.data || error.message);
       throw new Error('Failed to analyze file content. Please try again.');
+    }
+  }
+
+  async extractNotesFromContent(fileContent, fileName, fileCategory = null) {
+    try {
+      const maxContentLength = 4000;
+      const truncatedContent = fileContent.length > maxContentLength 
+        ? fileContent.substring(0, maxContentLength) + '...'
+        : fileContent;
+
+      const categoryInstructions = {
+        'linux': 'Extract key programming concepts, function definitions, class structures, and important code patterns.',
+        'config': 'Extract configuration parameters, settings, environment variables, and system requirements.',
+        'data': 'Extract data structures, queries, database schemas, and data relationships.',
+        'documents': 'Extract main ideas, key concepts, important facts, and supporting details.',
+        'spreadsheets': 'Extract data patterns, formulas, functions, and analytical insights.',
+        'presentations': 'Extract key points, main ideas, supporting details, and presentation structure.',
+        'text': 'Extract main concepts, key ideas, important facts, and supporting information.',
+        'pdf': 'Extract document content, key concepts, and important information.',
+        'archives': 'Extract file organization, structure, and management concepts.'
+      };
+
+      const categoryInstruction = categoryInstructions[fileCategory] || 'Extract the main concepts and important information.';
+
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert note-taker and content summarizer specializing in ${fileCategory || 'various'} content types.
+              ${categoryInstruction}
+              
+              Create comprehensive notes from the provided content that can be used for learning and study.
+              Organize the notes in a clear, structured format with main points, subpoints, and key details.`
+            },
+            {
+              role: 'user',
+              content: `Create detailed notes from this content:
+              
+              File: ${fileName}
+              File Type: ${fileCategory || 'Unknown'}
+              
+              Content:
+              ${truncatedContent}
+              
+              Organize the notes with:
+              - Main topics and concepts
+              - Key definitions and explanations
+              - Important details and examples
+              - Related concepts and connections
+              - Study tips and recommendations`
+            }
+          ],
+          max_tokens: 800,
+          temperature: 0.5
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenAI API Error:', error.response?.data || error.message);
+      throw new Error('Failed to extract notes from content. Please try again.');
     }
   }
 }

@@ -65,7 +65,8 @@ function App() {
       const newFlashcards = await openaiService.generateFlashcardsFromFile(
         fileData.originalContent,
         fileData.fileName,
-        fileData.topics
+        fileData.topics,
+        fileData.fileCategory
       );
       setFlashcards(Array.isArray(newFlashcards) ? newFlashcards : [newFlashcards]);
       setCurrentCardIndex(0);
